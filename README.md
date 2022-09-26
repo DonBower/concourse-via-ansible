@@ -4,7 +4,7 @@ Deploy Concourse via Ansible
 [![Repo](https://img.shields.io/static/v1?style=for-the-badge&logo=github&logoColor=white&label=repo&message=0.1.0&color=blue)](https://github.com/DonBower/concourse-via-ansible)
 [![Concourse](https://img.shields.io/static/v1?style=for-the-badge&logo=concourse&logoColor=white&label=concourse&message=7.8.2&color=blue)](https://concourse-ci.org)
 [![Ansible](https://img.shields.io/static/v1?style=for-the-badge&logo=ansible&logoColor=white&label=ansible&message=2.13.2&color=blue)](https://concourse-ci.org)
-[![Ubuntu](https://img.shields.io/static/v1?style=for-the-badge&logo=ubuntu&logoColor=white&label=ansible&message=20.04_LTS&color=blue)](https://ubuntu.com/download/server)
+[![Ubuntu](https://img.shields.io/static/v1?style=for-the-badge&logo=ubuntu&logoColor=white&label=ubuntu&message=20.04_LTS&color=blue)](https://ubuntu.com/download/server)
 [![issues](https://img.shields.io/static/v1?style=for-the-badge&label=issues&message=1&color=blue)](https://github.com/DonBower/concourse-via-ansible/issues)
 
 # Prerequisits:
