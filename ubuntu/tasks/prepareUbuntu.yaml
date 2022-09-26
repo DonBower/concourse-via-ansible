@@ -1,0 +1,48 @@
+---
+- name: Allow SUDO without PW
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/010_pi-nopasswd
+    create: true
+    mode: u=r,g=r,o=
+    state: present
+    line: "{{ remoteUser }} ALL=(ALL) NOPASSWD: ALL"
+
+- name: Upgrade installed APT Packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: full
+    autoremove: yes
+  register: aptResources
+
+- name: Debug Reboot Required
+  debug: 
+    msg: "{{ aptResources.changed }}"
+  when: debugLevel >= 2
+
+- name: Reboot the machine with all defaults when APT changes were applied
+  ansible.builtin.reboot:
+  when: aptResources.changed
+
+- name: Install APT Packages
+  ansible.builtin.apt:
+    pkg:
+    - acl
+    - net-tools
+    - netcat
+    - dnsutils
+    - python-is-python3
+    - python3-pip
+    - wget
+    - jq
+    - curl
+    - apt-transport-https
+    - ca-certificates
+    state: present
+
+- name: Install psycopg2-binary module
+  become: true
+  ansible.builtin.pip:
+    name:
+    - psycopg2-binary
+    - hvac
+    umask: "0022"

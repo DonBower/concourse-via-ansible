@@ -1,0 +1,23 @@
+---
+- name: Maintain Concourse Cluster
+  hosts: concourse
+  gather_facts: false
+  remote_user: don
+  become: true
+
+  tasks:
+    - name: Check File Exists
+      ansible.builtin.stat:
+        path: '/home/don/testme'
+      register: fileStatus
+
+    - name: Debug File Status
+      debug: 
+        msg: "The Status is {{ fileStatus }}"
+      when: debugLevel >= 1
+
+    - name: Debug File Contents
+      debug: 
+        msg: "The Contents of the file is \"{{ lookup('ansible.builtin.file', '/home/don/testme') }}\""
+      when: debugLevel >= 2
+

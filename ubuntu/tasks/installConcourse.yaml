@@ -1,0 +1,45 @@
+---
+- name: Download Concourse SHA1 file
+  become: false
+  ansible.builtin.get_url:
+    url: "{{ concourseDownloadURL }}/v{{ concourseVersion }}/{{ concourseSHA1File }}"
+    dest: ~/Downloads/concourseSHA1Sum
+    mode: '0666'
+  register: downloadExists
+
+- name: Read the SHA1 file
+  become: false
+  ansible.builtin.slurp:
+    src: ~/Downloads/concourseSHA1Sum
+  register: sha1String
+
+- name: Set Concourse SHA1 value
+  ansible.builtin.set_fact:
+    cacheable: yes
+    concourseSHA1Sum: "{{ (sha1String['content'] | b64decode).split(' ').0 }}"
+
+- name: Debug the concourseSHA1Sum value
+  debug: 
+    msg: "{{ hostvars }}"
+  when: debugLevel >= 2
+
+- name: Download Concourse Binary
+  become: false
+  ansible.builtin.get_url:
+    url: "{{ concourseDownloadURL }}/v{{ concourseVersion }}/{{ concourseTarFile }}"
+    dest: "~/Downloads/{{ concourseTarFile }}"
+    mode: '0666'
+    checksum: "sha1:{{ concourseSHA1Sum }}"
+  register: downloadFile
+
+- name: Debug the downloadedFile value
+  debug: 
+    msg: "{{ downloadFile.dest }}"
+  when: debugLevel >= 2
+
+
+- name: Untar the concourse binary
+  ansible.builtin.unarchive:
+    src: "{{ downloadFile.dest }}"
+    dest: "{{ concourseBinDir }}"
+    remote_src: true
