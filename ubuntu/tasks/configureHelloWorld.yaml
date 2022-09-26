@@ -1,0 +1,45 @@
+---
+- name: Fly Login
+  become: false
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/fly login --target concourse --concourse-url=http://{{ concourseFQDN }}:8080 --username=concourse --password={{ concoursePassword }}"
+  register: flyLogin
+
+- name: Debug Fly Login
+  debug: 
+    msg: "{{ flyLogin.stdout }}"
+  when: debugLevel >= 1
+
+- name: Set Pipeline
+  become: false
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/fly set-pipeline --target concourse --non-interactive --pipeline=Hello-World --config=files/hello-world.yaml"
+  register:  setPipeline
+
+- name: Debug Set Pipeline
+  debug: 
+    msg: "{{ setPipeline.stdout_lines }}"
+  when: debugLevel >= 1
+
+- name: Unpause Pipeline
+  become: false
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/fly unpause-pipeline --target concourse --pipeline=Hello-World"
+  register: unpausePipeline
+
+- name: Debug Unpause Pipeline
+  debug: 
+    msg: "{{ unpausePipeline.stdout }}"
+  when: debugLevel >= 1
+
+- name: Trigger Pipeline
+  become: false
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/fly trigger-job --target concourse --job=Hello-World/hello-world --watch"
+  register: pipelineOutput
+     
+- name: Debug Pipeline Output
+  debug: 
+    msg: "{{ pipelineOutput.stdout_lines }}"
+  when: debugLevel >= 0
+

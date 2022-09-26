@@ -1,0 +1,12 @@
+[Unit]
+Description=Concourse CI Worker process
+#After=postgresql.service
+
+[Service]
+User=root
+Restart=on-failure
+EnvironmentFile=/etc/concourse/worker_environment
+ExecStart=/usr/local/concourse/bin/concourse worker
+
+[Install]
+WantedBy=multi-user.target

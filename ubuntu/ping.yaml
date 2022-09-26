@@ -1,0 +1,22 @@
+---
+- name: Ping Concourse Cluster
+  hosts: all
+  gather_facts: true
+  remote_user: "{{ remoteUser }}"
+  become: true
+  vars_files:
+  - ~/.ssh/concourseSecrets.yaml
+
+  tasks:
+    - name: Ping the Servers
+      ansible.builtin.ping:
+
+    - name: Get WHOAMI user
+      become:      false
+      local_action: command whoami
+      register:    whoami
+      when: debugLevel >= 0
+
+    - debug: msg="{{ whoami.stdout }}"
+      when: debugLevel >= 0
+

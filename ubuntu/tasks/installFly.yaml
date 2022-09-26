@@ -1,0 +1,38 @@
+---
+- name: Download Fly SHA1 file
+  become: false
+  ansible.builtin.get_url:
+    url: "{{ concourseDownloadURL }}/v{{ concourseVersion }}/{{ flySHA1File }}"
+    dest: "~/Downloads/flySHA1Sum"
+    mode: '0666'
+
+- name: Read the SHA1 file
+  become: false
+  ansible.builtin.slurp:
+    src: ~/Downloads/flySHA1Sum
+  register: sha1String
+
+- name: Set Concourse SHA1 value
+  ansible.builtin.set_fact:
+    cacheable: yes
+    flySHA1Sum: "{{ (sha1String['content'] | b64decode).split(' ').0 }}"
+
+# - name: Set Fly SHA1 value
+#   ansible.builtin.set_fact:
+#     cacheable: yes
+#     flySHA1Sum: "{{ lookup('ansible.builtin.file', '~/Downloads/flySHA1Sum').split(' ').0 }}"
+
+- name: Download Fly Binary
+  become: false
+  ansible.builtin.get_url:
+    url: "{{ concourseDownloadURL }}/v{{ concourseVersion }}/{{ flyTarFile }}"
+    dest: "~/Downloads/{{ flyTarFile }}"
+    mode: '0666'
+    checksum: "sha1:{{ flySHA1Sum }}"
+
+- name: Untar the fly binary
+  become: false
+  ansible.builtin.unarchive:
+    src: "~/Downloads/{{ flyTarFile }}"
+    dest: /usr/local/bin/
+    remote_src: true

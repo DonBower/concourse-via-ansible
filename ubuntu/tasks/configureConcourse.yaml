@@ -1,0 +1,137 @@
+---
+- name: Add the concourse group
+  become: true
+  ansible.builtin.group:
+    name: concourse
+    state: present
+    system: true
+
+- name: Add the concourse user
+  become: true
+  ansible.builtin.user:
+    name: concourse
+    password: "{{ concoursePassword }}"
+    update_password: always
+    comment: Concourse User
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+    ssh_key_file: .ssh/id_rsa
+    groups: 
+      - root
+      - concourse
+    state: present
+
+- name: Create concourse etc directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/concourse
+    state: directory
+    owner: root
+    group: root
+    mode: '0777'
+
+- name: Create concourse /var/lib directory
+  become: true
+  ansible.builtin.file:
+    path: /var/lib/concourse
+    state: directory
+    owner: concourse
+    group: concourse
+    mode: '0755'
+
+
+- name: Generate RSA 4096 Bit Keys
+  become: true
+  community.crypto.openssh_keypair:
+    path: "/etc/concourse/{{ item }}"
+    size: 4096
+    type: rsa
+    backend: cryptography
+    private_key_format: pkcs8
+    regenerate: full_idempotence
+    owner: concourse
+    group: concourse
+    mode: '0644'
+  with_items:
+    - session_signing_key
+    - tsa_host_key
+    - worker_key
+
+- name: Copy worker key to known hosts
+  ansible.builtin.copy:
+    remote_src: true 
+    src: /etc/concourse/worker_key.pub
+    dest: /etc/concourse/authorized_worker_keys
+    owner: concourse
+    group: concourse
+    mode: '0644'
+
+- name: Fetch the keys from concourse to master
+  run_once: true
+  fetch:
+    src: "/etc/concourse/{{ item }}" 
+    dest: buffer/
+    flat: true
+  with_items:
+    - tsa_host_key.pub
+    - worker_key
+
+- name: Ensure concourse web environmental variables are exported
+  become: true
+  # no_log: true
+  ansible.builtin.lineinfile:
+    path: /etc/concourse/web_environment
+    regexp: "{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+    create: true
+    owner: concourse
+    group: concourse
+    mode: 600
+  with_items:
+    - key: CONCOURSE_MAIN_TEAM_LOCAL_USER
+      value: concourse
+    - key: CONCOURSE_ADD_LOCAL_USER
+      value: "concourse:{{ concoursePassword }}"
+    - key: CONCOURSE_SESSION_SIGNING_KEY
+      value: /etc/concourse/session_signing_key
+    - key: CONCOURSE_TSA_HOST_KEY
+      value: /etc/concourse/tsa_host_key
+    - key: CONCOURSE_TSA_AUTHORIZED_KEYS
+      value: /etc/concourse/authorized_worker_keys
+    - key: CONCOURSE_POSTGRES_HOST
+      value: "{{ postgresFQDN }}"
+    - key: CONCOURSE_POSTGRES_PORT
+      value: 5432
+    - key: CONCOURSE_POSTGRES_DATABASE
+      value: atc
+    - key: CONCOURSE_POSTGRES_USER
+      value: concourse
+    - key: CONCOURSE_POSTGRES_PASSWORD
+      value: "{{ concoursePassword }}"
+    - key: CONCOURSE_EXTERNAL_URL
+      value: "http://{{ concourseFQDN }}:8080"
+    - key: CONCOURSE_LOGIN
+      value: concourse
+    - key: CONCOURSE_PASSWORD
+      value: "{{ concoursePassword }}"
+
+- name: Copy systemd init file
+  template:
+    src: files/concourse-web.service
+    dest: /etc/systemd/system/concourse-web.service
+    owner: root
+    group: root
+    mode: 0644
+  # notify: systemd_reload
+
+- name: Just force systemd to reread configs (2.4 and above)
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Start Concourse-Web Service
+  service:
+    name: concourse-web
+    state: started
+    daemon_reload: yes
+    enabled: yes

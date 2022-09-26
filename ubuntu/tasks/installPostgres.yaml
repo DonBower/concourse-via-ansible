@@ -1,0 +1,72 @@
+---
+- name: Add the concourse group
+  become: true
+  ansible.builtin.group:
+    name: concourse
+    state: present
+    system: true
+
+- name: Add the concourse user
+  become: true
+  ansible.builtin.user:
+    name: concourse
+    password: "{{ concoursePassword }}"
+    update_password: always
+    comment: Concourse User
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+    ssh_key_file: .ssh/id_rsa
+    groups: 
+      - root
+      - concourse
+    state: present
+
+- name: Install Postgress SQL Server
+  apt:
+    name:
+    - postgresql
+    state: present
+
+- name: Replace Peer Postgres Authentication with Trust
+  become: true
+  ansible.builtin.replace:
+    path: "/etc/postgresql/{{ majorPostgresVersion }}/main/pg_hba.conf"
+    regexp:  'local   all             postgres                                peer'
+    replace: 'local   all             postgres                                trust'
+
+- name: Replace Peer Postgres Authentication with Trust
+  become: true
+  ansible.builtin.replace:
+    path: "/etc/postgresql/{{ majorPostgresVersion }}/main/pg_hba.conf"
+    regexp:  'host    all             all             127.0.0.1/32            md5'
+    replace: 'host    all             all             0.0.0.0/0               trust'
+
+- name: Listen on all IP Addresses
+  become: true
+  ansible.builtin.replace:
+    path: "/etc/postgresql/{{ majorPostgresVersion }}/main/postgresql.conf"
+    regexp: '^.*listen_addresses.*'
+    replace: "listen_addresses = '*'                  # what IP address(es) to listen on;"
+
+- name: Restart postgres Service
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+
+- name: Create user
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: concourse
+    state: present
+  vars:
+    ansible_ssh_pipelining: true
+
+- name: Create ATC Database
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "atc"
+    state: present
+  vars:
+    ansible_ssh_pipelining: true

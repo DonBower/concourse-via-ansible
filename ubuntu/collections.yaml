@@ -1,0 +1,12 @@
+---
+collections:
+# With just the collection name
+# Install with ansible-galaxy collection install -r collections.yaml
+- ansible.netcommon
+- ansible.posix
+- ansible.utils
+- community.crypto
+- community.general
+- community.mysql
+- kubernetes.core
+- community.postgresql

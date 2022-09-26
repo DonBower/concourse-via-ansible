@@ -1,0 +1,158 @@
+---
+- name: Maintain Concourse Cluster
+  hosts: concourseCluster
+  gather_facts: true
+  remote_user: "{{ remoteUser }}"
+  become: true
+  vars_files:
+  - ~/.ssh/concourseSecrets.yaml
+
+  pre_tasks:
+    - name: Ping the Servers
+      ansible.builtin.ping:
+
+    - include_tasks: tasks/prepareUbuntu.yaml
+      name: Prepare Ubuntu
+      when: ('ubuntu' in group_names)
+
+  tasks:
+    - name: Set some variables
+      ansible.builtin.set_fact:
+        cacheable: yes
+        concourseOS: "{{ ansible_system | lower }}"
+        concourseARCH: "{% if ansible_architecture=='x86_64' %}amd64{% else %}{{ ansible_architecture }}{% endif %}"
+
+    - name: Debug host architecture
+      debug: 
+        msg: "{{ concourseARCH }}"
+      when: debugLevel >= 2
+
+    - name: Debug host os
+      debug: 
+        msg: "{{ concourseOS }}"
+      when: debugLevel >= 1
+
+    - name: Set some compound variables
+      ansible.builtin.set_fact:
+        cacheable: yes
+        concourseTarFile: "concourse-{{ concourseVersion }}-{{ concourseOS }}-{{concourseARCH }}.tgz"
+        concourseSHA1File: "concourse-{{ concourseVersion }}-{{ concourseOS }}-{{concourseARCH }}.tgz.sha1"
+        flyTarFile: "fly-{{ concourseVersion }}-{{ concourseOS }}-{{concourseARCH }}.tgz"
+        flySHA1File: "fly-{{ concourseVersion }}-{{ concourseOS }}-{{concourseARCH }}.tgz.sha1"
+
+    - name: Debug Concourse File Name
+      debug: 
+        msg: "{{ concourseTarFile }}"
+      when: debugLevel >= 2
+
+    - name: Create downloads directory
+      become: false
+      ansible.builtin.file:
+        path: ~/Downloads
+        state: directory
+        mode: '0777'
+      when: ('concourseCluster' in group_names)
+
+    - name: Check if concourse exists
+      ansible.builtin.stat:
+        path: /usr/local/concourse/bin/concourse
+      register: concourseExists
+
+    # ! idempotent
+    - name: Get Current Concourse version
+      ansible.builtin.command: 
+        cmd: "/usr/local/concourse/bin/concourse --version"
+      register: concourseVersionTemp
+      when: concourseExists.stat.exists == True
+      changed_when: false
+
+    - name: Set Concourse Version variable
+      ansible.builtin.set_fact:
+        cacheable: yes
+        currentConcourseVersion: "{% if concourseExists.stat.exists == False %}0.0.0{% else %}{{ concourseVersionTemp.stdout }}{% endif %}"
+
+    - name: Check if fly exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/fly
+      register: flyExists
+
+    # ! idempotent
+    - name: Get Current Fly version
+      ansible.builtin.command: 
+        cmd: "/usr/local/bin/fly --version"
+      register: flyVersionTemp
+      when: flyExists.stat.exists == True
+
+    - name: Set Fly Version variable
+      ansible.builtin.set_fact:
+        cacheable: yes
+        currentFlyVersion: "{% if flyExists.stat.exists == False %}0.0.0{% else %}{{ flyVersionTemp.stdout }}{% endif %}"
+
+    # ! idempotent
+    - name: Check if Postgres exists
+      ansible.builtin.stat:
+        path: /usr/bin/psql
+      register: postgresExists
+
+    - name: Debug Postgres Exists
+      debug:
+        msg: "{{  postgresExists }}"
+      when: debugLevel >= 2 and dbServer
+
+    - name: Collect PostgreSQL version and extensions
+      become: yes
+      become_user: postgres
+      community.postgresql.postgresql_info:
+        filter: version
+      register: postgresVersionTemp
+      when: postgresExists.stat.exists
+
+    - name: Set Desired Postgres Version variable
+      ansible.builtin.set_fact:
+        cacheable: yes
+        postgresVersion: "{{ postgresMajorVersion }}.{{ postgresMinorVersion }}"
+
+    - name: Set Current Postgres Version variable
+      ansible.builtin.set_fact:
+        cacheable: yes
+        currentPostgresVersion: "{% if postgresExists.stat.exists == False %}0.0{% else %}{{ postgresVersionTemp.version.full }}{% endif %}"
+
+    - name: Set Postgres Major Version variable
+      ansible.builtin.set_fact:
+        cacheable: yes
+        majorPostgresVersion: "{% if postgresExists.stat.exists == False %}{{ postgresMajorVersion }}{% else %}{{ postgresVersionTemp.version.major }}{% endif %}"
+
+  post_tasks:
+    - name: Debug Current Postgres Version
+      debug: 
+        msg: "{{ currentPostgresVersion }}"
+      when: debugLevel >= 2 and dbServer
+
+    - name: Debug Desired Postgres Version
+      debug: 
+        msg: "{{ postgresVersion }}"
+      when: debugLevel >= 2 and dbServer
+
+    - include_tasks: tasks/installPostgres.yaml
+      name: Install Postgres
+      when: dbServer and (currentPostgresVersion != postgresVersion)
+
+    - include_tasks: tasks/installConcourse.yaml
+      name: Install Concourse
+      when: needConcourseBin and (currentConcourseVersion != concourseVersion)
+
+    - include_tasks: tasks/configureConcourse.yaml
+      name: Configure Concourse Web
+      when: concourseServer and (currentConcourseVersion != concourseVersion)
+
+    - include_tasks: tasks/configureWorker.yaml
+      name: Configure Concourse Worker
+      when: concourseWorker and (currentConcourseVersion != concourseVersion)
+
+    - include_tasks: tasks/installFly.yaml
+      name: Install Fly (Concourse CLI)
+      when: ('ansibleHost' in group_names) and (currentFlyVersion != concourseVersion)
+
+    - include_tasks: tasks/configureHelloWorld.yaml
+      name: Configure Hello World Sample Pipeline
+      when: ('ansibleHost' in group_names)
