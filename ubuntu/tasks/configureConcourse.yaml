@@ -117,8 +117,12 @@
       value: "{{ concoursePassword }}"
     - key: CONCOURSE_VAULT_URL
       value: "{{ vaultURL }}"
-    - key: CONCOURSE_VAULT_CLIENT_TOKEN
-      value: "{{ vaultToken }}"
+    - key: CONCOURSE_VAULT_AUTH_BACKEND
+      value: "approle"
+    - key: CONCOURSE_VAULT_AUTH_PARAM
+      value: "role_id:{{ vaultRoleId }},secret_id:{{ vaultSecretId }}"
+    - key: CONCOURSE_VAULT_AUTH_BACKEND_MAX_TTL
+      value: 1h
     - key: CONCOURSE_VAULT_PATH_PREFIX
       value: /concourse
     # - key: CONCOURSE_VAULT_LOOKUP_TEMPLATES
