@@ -82,6 +82,7 @@
         cmd: "/usr/local/bin/fly --version"
       register: flyVersionTemp
       when: flyExists.stat.exists == True
+      changed_when: false
 
     - name: Set Fly Version variable
       ansible.builtin.set_fact:
@@ -143,11 +144,11 @@
 
     - include_tasks: tasks/configureConcourse.yaml
       name: Configure Concourse Web
-      when: concourseServer and (currentConcourseVersion != concourseVersion)
+      when: concourseServer
 
     - include_tasks: tasks/configureWorker.yaml
       name: Configure Concourse Worker
-      when: concourseWorker and (currentConcourseVersion != concourseVersion)
+      when: concourseWorker
 
     - include_tasks: tasks/installFly.yaml
       name: Install Fly (Concourse CLI)
