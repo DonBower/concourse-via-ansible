@@ -115,6 +115,15 @@
       value: concourse
     - key: CONCOURSE_PASSWORD
       value: "{{ concoursePassword }}"
+    - key: CONCOURSE_VAULT_URL
+      value: "{{ vaultURL }}"
+    - key: CONCOURSE_VAULT_CLIENT_TOKEN
+      value: "{{ vaultToken }}"
+    - key: CONCOURSE_VAULT_PATH_PREFIX
+      value: /concourse
+    # - key: CONCOURSE_VAULT_LOOKUP_TEMPLATES
+    #   value: '/{{.Team}}/{{.Pipeline}}/{{.Secret}},/{{.Team}}/{{.Secret}},/common/{{.Secret}}'
+
 
 - name: Copy systemd init file
   template:
