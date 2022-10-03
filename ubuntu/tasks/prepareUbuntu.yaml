@@ -39,10 +39,11 @@
     - ca-certificates
     state: present
 
-- name: Install psycopg2-binary module
+- name: Install psycopg2-binary and other modules
   become: true
   ansible.builtin.pip:
     name:
     - psycopg2-binary
     - hvac
+    - csvkit
     umask: "0022"
